@@ -182,13 +182,25 @@ export interface MidsceneYamlFlowItemLogScreenshot {
   content?: string;
 }
 
+export interface MidsceneYamlFlowItemRunAdbShell {
+  runAdbShell: string;
+  name?: string;
+}
+
 export type MidsceneYamlFlowItem =
   | MidsceneYamlFlowItemAIAction
   | MidsceneYamlFlowItemAIAssert
   | MidsceneYamlFlowItemAIQuery
+  | MidsceneYamlFlowItemAINumber
+  | MidsceneYamlFlowItemAIString
+  | MidsceneYamlFlowItemAIAsk
+  | MidsceneYamlFlowItemAIBoolean
+  | MidsceneYamlFlowItemAILocate
   | MidsceneYamlFlowItemAIWaitFor
+  | MidsceneYamlFlowItemEvaluateJavaScript
   | MidsceneYamlFlowItemSleep
-  | MidsceneYamlFlowItemLogScreenshot;
+  | MidsceneYamlFlowItemLogScreenshot
+  | MidsceneYamlFlowItemRunAdbShell;
 
 export interface FreeFn {
   name: string;
