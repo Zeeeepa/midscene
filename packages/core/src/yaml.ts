@@ -182,11 +182,6 @@ export interface MidsceneYamlFlowItemLogScreenshot {
   content?: string;
 }
 
-export interface MidsceneYamlFlowItemRunAdbShell {
-  runAdbShell: string;
-  name?: string;
-}
-
 export type MidsceneYamlFlowItem =
   | MidsceneYamlFlowItemAIAction
   | MidsceneYamlFlowItemAIAssert
@@ -199,8 +194,7 @@ export type MidsceneYamlFlowItem =
   | MidsceneYamlFlowItemAIWaitFor
   | MidsceneYamlFlowItemEvaluateJavaScript
   | MidsceneYamlFlowItemSleep
-  | MidsceneYamlFlowItemLogScreenshot
-  | MidsceneYamlFlowItemRunAdbShell;
+  | MidsceneYamlFlowItemLogScreenshot;
 
 export interface FreeFn {
   name: string;

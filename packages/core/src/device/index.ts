@@ -50,7 +50,7 @@ export const defineAction = <
     description: string;
     interfaceAlias?: string;
     paramSchema: TSchema;
-    call: (param: TRuntime) => Promise<void>;
+    call: (param: TRuntime) => Promise<any> | any;
   } & Partial<
     Omit<
       DeviceAction<TRuntime>,

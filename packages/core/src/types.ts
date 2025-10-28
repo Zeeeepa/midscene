@@ -559,7 +559,7 @@ export interface DeviceAction<T = any> {
   description?: string;
   interfaceAlias?: string;
   paramSchema?: z.ZodType<T>;
-  call: (param: T, context: ExecutorContext) => Promise<void> | void;
+  call: (param: T, context: ExecutorContext) => Promise<any> | any;
 }
 
 /**

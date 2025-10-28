@@ -43,7 +43,6 @@ import type {
   MidsceneYamlFlowItemAIWaitFor,
   MidsceneYamlFlowItemEvaluateJavaScript,
   MidsceneYamlFlowItemLogScreenshot,
-  MidsceneYamlFlowItemRunAdbShell,
   MidsceneYamlFlowItemSleep,
   MidsceneYamlScript,
   MidsceneYamlScriptEnv,
@@ -327,20 +326,6 @@ export class ScriptPlayer<T extends MidsceneYamlScriptEnv> {
         await agent.logScreenshot(logScreenshotTask.logScreenshot, {
           content: logScreenshotTask.content || '',
         });
-      } else if (
-        'runAdbShell' in (flowItem as MidsceneYamlFlowItemRunAdbShell)
-      ) {
-        const runAdbShellTask = flowItem as MidsceneYamlFlowItemRunAdbShell;
-        const command = runAdbShellTask.runAdbShell;
-        assert(command, 'missing command for runAdbShell');
-
-        // Check if the agent has runAdbShell method (AndroidAgent)
-        if (typeof (agent as any).runAdbShell === 'function') {
-          const result = await (agent as any).runAdbShell(command);
-          this.setResult(runAdbShellTask.name, result);
-        } else {
-          throw new Error('runAdbShell is only supported on Android agents');
-        }
       } else if ('aiInput' in (flowItem as MidsceneYamlFlowItemAIInput)) {
         // may be input empty string ''
         const { aiInput, ...inputTask } =
@@ -485,30 +470,86 @@ export class ScriptPlayer<T extends MidsceneYamlScriptEnv> {
           `conflict locate prompt for item: ${JSON.stringify(flowItem)}`,
         );
 
-        if (locatePromptShortcut) {
-          (flowItem as any).prompt = locatePromptShortcut;
+        // Check if the action's paramSchema expects a 'locate' parameter
+        let flowParams: any;
+        const paramSchema = matchedAction.paramSchema;
+
+        // Try to get the shape of the schema (works for z.object)
+        let schemaShape: any = {};
+        if (paramSchema && '_def' in paramSchema) {
+          const def = (paramSchema as any)._def;
+          if (def.shape) {
+            schemaShape =
+              typeof def.shape === 'function' ? def.shape() : def.shape;
+          }
         }
 
-        const { locateParam, restParams } =
-          buildDetailedLocateParamAndRestParams(
-            locatePromptShortcut || '',
-            flowItem as LocateOption,
-            [
-              matchedAction.name,
-              matchedAction.interfaceAlias || '_never_mind_',
-            ],
-          );
+        const hasLocateParam = 'locate' in schemaShape;
 
-        const flowParams = {
-          ...restParams,
-          locate: locateParam,
-        };
+        if (hasLocateParam) {
+          // This is a locate-based action (like aiTap, aiInput, etc.)
+          if (locatePromptShortcut) {
+            (flowItem as any).prompt = locatePromptShortcut;
+          }
+
+          const { locateParam, restParams } =
+            buildDetailedLocateParamAndRestParams(
+              locatePromptShortcut || '',
+              flowItem as LocateOption,
+              [
+                matchedAction.name,
+                matchedAction.interfaceAlias || '_never_mind_',
+              ],
+            );
+
+          flowParams = {
+            ...restParams,
+            locate: locateParam,
+          };
+        } else {
+          // This is a non-locate action (like runAdbShell)
+          // Build params from the flowItem directly
+          const actionKey = matchedAction.interfaceAlias || matchedAction.name;
+
+          // Get all properties except the action key itself
+          const params: any = {};
+          for (const key in flowItem) {
+            if (
+              key !== actionKey &&
+              key !== matchedAction.name &&
+              key !== 'name' && // Exclude the 'name' property as it's used for result storage
+              Object.prototype.hasOwnProperty.call(flowItem, key)
+            ) {
+              params[key] = (flowItem as any)[key];
+            }
+          }
+
+          // If the shortcut value exists, use it as the first param
+          if (locatePromptShortcut !== undefined) {
+            // Get the first parameter name from the schema
+            const paramKeys = Object.keys(schemaShape);
+            if (paramKeys.length > 0) {
+              const firstParamKey = paramKeys[0];
+              params[firstParamKey] = locatePromptShortcut;
+            }
+          }
+
+          flowParams = params;
+        }
 
         debug(
           `matchedAction: ${matchedAction.name}`,
           `flowParams: ${JSON.stringify(flowParams, null, 2)}`,
         );
-        await agent.callActionInActionSpace(matchedAction.name, flowParams);
+        const result = await agent.callActionInActionSpace(
+          matchedAction.name,
+          flowParams,
+        );
+        // Store result if the flow item has a name property
+        const flowItemName = (flowItem as any).name;
+        if (result !== undefined && result !== null) {
+          this.setResult(flowItemName, result);
+        }
       }
     }
     this.reportFile = agent.reportFile;
